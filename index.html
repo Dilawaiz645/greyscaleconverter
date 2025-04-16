@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grayscale Image Converter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #f8f9fa, #e9ecef);
+      padding: 50px 20px;
+      text-align: center;
+      color: #333;
+    }
+
+    h1 {
+      font-weight: 600;
+      margin-bottom: 30px;
+    }
+
+    .upload-area {
+      border: 2px dashed #aaa;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: 0.3s;
+      margin-bottom: 20px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .upload-area.dragover {
+      border-color: #333;
+      background-color: #f1f1f1;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .btn {
+      padding: 12px 25px;
+      background: #222;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      margin: 10px;
+    }
+
+    .btn:hover {
+      background: #444;
+    }
+
+    .canvas-container {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .canvas-box {
+      background: #fff;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      width: fit-content;
+      transition: transform 0.3s ease;
+    }
+
+    .canvas-box:hover {
+      transform: translateY(-5px);
+    }
+
+    .canvas-box h3 {
+      font-weight: 500;
+      margin-bottom: 15px;
+      color: #444;
+    }
+
+    canvas {
+      border-radius: 10px;
+      max-width: 100%;
+      border: 1px solid #ddd;
+    }
+
+    @media (max-width: 768px) {
+      .canvas-container {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Grayscale Image Converter</h1>
+
+  <div class="upload-area" id="uploadArea">
+    <label for="imageUpload">📁 Drag & Drop or Click to Upload Image</label>
+    <input type="file" id="imageUpload" accept="image/*" />
+  </div>
+
+  <div>
+    <button class="btn" onclick="convertToGrayscale()">Convert to Grayscale</button>
+    <button class="btn" onclick="downloadGrayscale()">Download Grayscale Image</button>
+  </div>
+
+  <div class="canvas-container">
+    <div class="canvas-box">
+      <h3>Original Image</h3>
+      <canvas id="originalCanvas"></canvas>
+    </div>
+    <div class="canvas-box">
+      <h3>Grayscale Image</h3>
+      <canvas id="grayscaleCanvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const imageUpload = document.getElementById('imageUpload');
+    const uploadArea = document.getElementById('uploadArea');
+    const originalCanvas = document.getElementById('originalCanvas');
+    const grayscaleCanvas = document.getElementById('grayscaleCanvas');
+    const originalCtx = originalCanvas.getContext('2d');
+    const grayscaleCtx = grayscaleCanvas.getContext('2d');
+    let originalImage = null;
+
+    // File input listener
+    imageUpload.addEventListener('change', handleImage);
+
+    // Drag & drop events
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        imageUpload.files = e.dataTransfer.files; // sync to hidden input
+        handleImage({ target: { files: [file] } });
+      }
+    });
+
+    // Handle Image Loading
+    function handleImage(e) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        const img = new Image();
+        img.onload = function () {
+          originalCanvas.width = grayscaleCanvas.width = img.width;
+          originalCanvas.height = grayscaleCanvas.height = img.height;
+
+          originalCtx.drawImage(img, 0, 0);
+          originalImage = originalCtx.getImageData(0, 0, img.width, img.height);
+
+          grayscaleCtx.clearRect(0, 0, grayscaleCanvas.width, grayscaleCanvas.height);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Convert to Grayscale
+    function convertToGrayscale() {
+      if (!originalImage) return;
+
+      const imageData = new ImageData(
+        new Uint8ClampedArray(originalImage.data),
+        originalImage.width,
+        originalImage.height
+      );
+
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const red = data[i];
+        const green = data[i + 1];
+        const blue = data[i + 2];
+        const gray = 0.3 * red + 0.59 * green + 0.11 * blue;
+
+        data[i] = data[i + 1] = data[i + 2] = gray;
+      }
+
+      grayscaleCtx.putImageData(imageData, 0, 0);
+    }
+
+    // Download Grayscale Image
+    function downloadGrayscale() {
+      const link = document.createElement('a');
+      link.download = 'grayscale-image.png';
+      link.href = grayscaleCanvas.toDataURL('image/png');
+      link.click();
+    }
+  </script>
+</body>
+</html>
